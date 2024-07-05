@@ -8,6 +8,8 @@ import io
 from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+from typing import List
 
 # 加载环境变量
 load_dotenv()
@@ -36,6 +38,44 @@ def encode_image(image_bytes):
     return base64.b64encode(image_bytes).decode('utf-8')
 
 
+async def call_openai_api(base64_image: str, target_language: str):
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {openai_api_key}"
+    }
+
+    # 调用OpenAI Vision API识别图片内容并翻译
+    payload = {
+        "model": "gpt-4o-2024-05-13",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"You are the master of menu translate, help me with the task below. The following is an image of a menu of your language and you are also expert of {target_language}, you also have background of food. Please extract all the text and just translate all of them to {target_language}."
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}",
+                            "detail": "high"
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 2000
+    }
+
+    response = requests.post(
+        "https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    response_json = response.json()
+    translated_text = response_json['choices'][0]['message']['content'].strip()
+
+    return translated_text
+
+
 @app.post("/upload/")
 async def upload_image(file: UploadFile = File(...), target_language: str = Form(...)):
     try:
@@ -43,40 +83,8 @@ async def upload_image(file: UploadFile = File(...), target_language: str = Form
         image_bytes = await file.read()
         base64_image = encode_image(image_bytes)
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {openai_api_key}"
-        }
-
-        # 调用OpenAI Vision API识别图片内容并翻译
-        payload = {
-            "model": "gpt-4o-2024-05-13",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": f"You are the master of menu translate, help me with the task below. The following is an image of a menu of your language and you are also expert of {target_language}, you also have background of food. Please extract all the text and just translate all of them to {target_language}."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}",
-                                "detail": "high"
-                            }
-                        }
-                    ]
-                }
-            ],
-            "max_tokens": 2000
-        }
-
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-        response_json = response.json()
-        translated_text = response_json['choices'][0]['message']['content'].strip(
-        )
+        # 调用异步函数处理API请求
+        translated_text = await call_openai_api(base64_image, target_language)
 
         return JSONResponse(content={
             "translated_text": translated_text

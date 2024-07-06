@@ -158,5 +158,32 @@ async def get_user_stats(request: UserStatsRequest):
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
+
+@app.get("/stats/total")
+async def get_total_stats():
+    try:
+        conn = sqlite3.connect('usage_stats.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT action, COUNT(*), MIN(timestamp), MAX(timestamp)
+            FROM usage_stats
+            GROUP BY action
+        ''')
+        rows = cursor.fetchall()
+        conn.close()
+
+        stats = [{
+            "action": row[0],
+            "count": row[1],
+            "first_use": row[2],
+            "last_use": row[3]
+        } for row in rows]
+
+        return JSONResponse(content={
+            "total_stats": stats
+        })
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
 # 启动服务的命令（在命令行中运行）
 # uvicorn main:app --reload

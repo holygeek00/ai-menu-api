@@ -4,12 +4,11 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import openai
-import io
 from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
-import asyncio
-from typing import List
+import sqlite3
+from datetime import datetime
 
 # 加载环境变量
 load_dotenv()
@@ -32,6 +31,10 @@ app.add_middleware(
 
 class TranslationRequest(BaseModel):
     target_language: str
+
+
+class UserStatsRequest(BaseModel):
+    user_id: str
 
 
 def encode_image(image_bytes):
@@ -75,9 +78,40 @@ async def call_openai_api(base64_image: str, target_language: str):
 
     return translated_text
 
+# 数据库初始化
+
+
+def init_db():
+    conn = sqlite3.connect('usage_stats.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usage_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+def log_usage(user_id, action):
+    conn = sqlite3.connect('usage_stats.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO usage_stats (user_id, action)
+        VALUES (?, ?)
+    ''', (user_id, action))
+    conn.commit()
+    conn.close()
+
 
 @app.post("/upload/")
-async def upload_image(file: UploadFile = File(...), target_language: str = Form(...)):
+async def upload_image(file: UploadFile = File(...), target_language: str = Form(...), user_id: str = Form(...)):
     try:
         # 读取上传的图片文件
         image_bytes = await file.read()
@@ -86,8 +120,40 @@ async def upload_image(file: UploadFile = File(...), target_language: str = Form
         # 调用异步函数处理API请求
         translated_text = await call_openai_api(base64_image, target_language)
 
+        # 记录用户行为
+        log_usage(user_id, "upload_and_translate")
+
         return JSONResponse(content={
             "translated_text": translated_text
+        })
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+@app.post("/user/stats/")
+async def get_user_stats(request: UserStatsRequest):
+    try:
+        conn = sqlite3.connect('usage_stats.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT action, COUNT(*), MIN(timestamp), MAX(timestamp)
+            FROM usage_stats
+            WHERE user_id = ?
+            GROUP BY action
+        ''', (request.user_id,))
+        rows = cursor.fetchall()
+        conn.close()
+
+        stats = [{
+            "action": row[0],
+            "count": row[1],
+            "first_use": row[2],
+            "last_use": row[3]
+        } for row in rows]
+
+        return JSONResponse(content={
+            "user_id": request.user_id,
+            "stats": stats
         })
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)

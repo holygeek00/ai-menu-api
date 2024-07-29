@@ -49,7 +49,7 @@ async def call_openai_api(base64_image: str, target_language: str):
 
     # 调用OpenAI Vision API识别图片内容并翻译
     payload = {
-        "model": "gpt-4o-2024-05-13",
+        "model": "gpt-4o-mini-2024-07-18",
         "messages": [
             {
                 "role": "user",

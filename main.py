@@ -56,7 +56,33 @@ async def call_openai_api(base64_image: str, target_language: str):
                 "content": [
                     {
                         "type": "text",
-                        "text": f"You are the master of menu translate, help me with the task below. The following is an image of a menu of your language and you are also expert of {target_language}, you also have background of food. Please extract all the text and just translate all of them to {target_language}."
+                        "text": f''' 
+                        You are a professional translator specializing in menu translations. Your task is to translate a given menu from its original language into the specified target language. Here's how to proceed:
+
+                        First, I will provide you with the menu to be translated:
+
+                        The target language for this translation is:
+
+                        <target_language>
+                        {target_language}
+                        </target_language>
+
+                        Please follow these guidelines when translating the menu:
+
+                        1. Translate all text in the menu, including dish names, descriptions, and any additional information.
+                        2. Preserve the original structure and formatting of the menu as much as possible.
+                        3. If there are any culturally specific terms or dishes that don't have a direct translation, provide a brief explanation in parentheses after the translated term.
+                        4. Keep any prices or numerical information unchanged.
+                        5. If there are any special characters or symbols used in the original menu (e.g., for spicy dishes or vegetarian options), maintain them in the translation.
+                        6. For dish names that are proper nouns or have a specific cultural significance, you may choose to keep them in the original language and provide a translation or explanation in parentheses.
+
+                        Once you have completed the translation, please provide the translated menu in its entirety, maintaining the original structure and formatting as closely as possible.
+
+                        If you encounter any terms or phrases that you're unsure about, please indicate this by placing [UNCERTAIN] after the translated term, and provide your best attempt at a translation.
+
+                        Please begin your translation now.
+                        '''
+                        # "text": f"You are the master of menu translate, help me with the task below. The following is an image of a menu of your language and you are also expert of {target_language}, you also have background of food. Please extract all the text and just translate all of them to {target_language}."
                     },
                     {
                         "type": "image_url",

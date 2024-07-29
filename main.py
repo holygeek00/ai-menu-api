@@ -82,7 +82,6 @@ async def call_openai_api(base64_image: str, target_language: str):
 
                         Please begin your translation now.
                         '''
-                        # "text": f"You are the master of menu translate, help me with the task below. The following is an image of a menu of your language and you are also expert of {target_language}, you also have background of food. Please extract all the text and just translate all of them to {target_language}."
                     },
                     {
                         "type": "image_url",
